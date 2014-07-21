@@ -6,7 +6,7 @@ import re
 
 #TO OUTPUT TO JSON RUN THIS COMMAND
 #run in dir: exrxScraper/exrxProject
-#scrapy crawl exrx -o items.json -t json 
+#scrapy crawl exrx -o items.json -t json
 
 class exrxScraperSpider(Spider):
     name = "exrx"
@@ -19,15 +19,70 @@ class exrxScraperSpider(Spider):
         sel = Selector(response)
         exerciseItems = []
 
-        instructionsTree = sel.xpath('//h2[contains(text(), "Instructions")]')
-        print instructionsTree
+        #instructionsTree = sel.xpath('//h2[contains(text(), "Instructions")]')
+        #print instructionsTree
         item = ExrxExercise()
-        prep = instructionsTree.xpath('./../dl/dd[contains(text(), "Preparation")]')
-        item['preparation'] = prep.xpath('./text()').extract()
-        execution = instructionsTree.xpath('./../dl/dd[contains(text(), "Execution")]')
-        item['execution'] = execution.xpath('./text()').extract()
-        exerciseItems.append(item)
-        yield item 
+        #prep = instructionsTree.xpath('./../dl/dd[contains(text(), "Preparation")]')
+        #item['preparation'] = prep.xpath('./text()').extract()
+        #execution = instructionsTree.xpath('./../dl/dd[contains(text(), "Execution")]')
+        #item['execution'] = execution.xpath('./text()').extract()
+        #exerciseItems.append(item)
+
+        item['link'] = response.url
+
+        category = response.url.split('/')[3]
+        sub_category = response.url.split('/')[4]
+        item['category'] = category
+        item['sub_category'] = sub_category
+
+        title = response.xpath('//h1/a/text()').extract()[0]
+
+        # Remove whitespace from title
+        title = title.replace('\n', ' ').replace('\r', ' ')
+        title = " ".join(title.split())
+        item['title'] = title
+
+        instructions = response.xpath('//table[contains(@border, "1")]/tr/td')[0].xpath('.//text()').extract()
+        instructions = ''.join(instructions)
+        item['instructions'] = instructions
+
+        images = response.xpath('//img/@src').extract()
+        if len(images) > 1:
+            image = images[1]
+            image = image.replace('../../', 'http://www.exrx.net/')
+            item['image'] = image
+        else:
+            item['image'] = "No image available."
+
+        muscles = response.xpath('//table[contains(@border, "1")]/tr/td')[1].xpath('.//*[not(self::blockquote)]/text()').extract()
+        muscles = ''.join(muscles)
+        if 'MusclesTarget' in muscles:
+            muscles = 'Target \n' + muscles.split('MusclesTarget')[1]
+            muscles = muscles.replace('Synergists', 'Synergists\n')
+            muscles = muscles.replace('Stabilizers', 'Stabilizers\n')
+
+        item['muscles'] = muscles
+
+        print '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+        print 'Title: %s' % title
+        print 'Category: %s, Sub Category: %s' % (category, sub_category)
+        print
+
+        print 'Instructions:'
+        print instructions
+        print
+
+        print 'Muscles:'
+        print muscles
+        print
+
+        print 'Image:'
+        print image
+        print
+
+        yield item
+
+
 
     def getEquipmentName(self, sel):
         count = 0
@@ -53,13 +108,16 @@ class exrxScraperSpider(Spider):
             for s in newTitleList:
                 title = s
             for s in links:
-                link = 'www.exrx.net/' + s.replace('../../','' )
-                
+                link = 'http://www.exrx.net/' + s.replace('../../','' )
+
             if (not (link == '')) and (not (title == '')):
-                item = ExrxCategory()
-                item['link'] = link
-                item['title'] = title
-                yield item 
+                #item = ExrxCategory()
+                #item['link'] = link
+                #item['title'] = title
+                #yield item
+                req = Request(link, callback=self.parseExercise)
+                yield req
+
 
     def parse(self, response):
         sel = Selector(response)
