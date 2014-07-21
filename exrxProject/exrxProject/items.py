@@ -17,8 +17,12 @@ class ExrxCategory(Item):
 
 class ExrxExercise(Item):
     # define the fields for your item here like:
-    preparation = Field()
-    execution = Field()
+    #preparation = Field()
+    #execution = Field()
     link = Field()
     title = Field()
-
+    image = Field()
+    instructions = Field()
+    muscles = Field()
+    category = Field()
+    sub_category = Field()
