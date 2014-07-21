@@ -8,12 +8,20 @@ import re
 #run in dir: exrxScraper/exrxProject
 #scrapy crawl exrx -o items.json -t json
 
+NON_DIR_URLS = [
+    'http://www.exrx.net/Lists/OlympicWeightlifting.html',
+    'http://www.exrx.net/Lists/PowerExercises.html',
+    'http://www.exrx.net/Lists/KettlebellExercises.html',
+    'http://www.exrx.net/Lists/CardioExercises.html',
+]
+
+
 class exrxScraperSpider(Spider):
     name = "exrx"
     allowed_domains = ["exrx.net"]
     start_urls = [
             "http://www.exrx.net/Lists/Directory.html",
-            ]
+            ] + NON_DIR_URLS
 
     def parseExercise(self, response):
         sel = Selector(response)
@@ -60,6 +68,10 @@ class exrxScraperSpider(Spider):
             muscles = 'Target \n' + muscles.split('MusclesTarget')[1]
             muscles = muscles.replace('Synergists', 'Synergists\n')
             muscles = muscles.replace('Stabilizers', 'Stabilizers\n')
+
+        if 'Force (Articulation)' in muscles:
+            muscles = 'Force (Articulation) \n' + muscles.split('Force (Articulation)')[1]
+
 
         item['muscles'] = muscles
 
@@ -120,6 +132,15 @@ class exrxScraperSpider(Spider):
 
 
     def parse(self, response):
+
+        if response.url in NON_DIR_URLS:
+            for link in response.xpath('//ul/li/a/@href'):
+                href = link.extract()
+                if '..' in href:
+                    href = href.replace('../', 'http://www.exrx.net/')
+                    req = Request(href, callback=self.parseExercise)
+                    yield req
+
         sel = Selector(response)
         exercises = sel.xpath('//h2[contains(text(), "Exercises")]')
         sites = exercises.xpath('./..//ul//li')
